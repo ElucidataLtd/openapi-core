@@ -61,7 +61,7 @@ metadata = get_metadata(init_py)
 
 
 setup(
-    name='openapi-core',
+    name='elucidata-openapi-core',
     version=metadata['version'],
     author=metadata['author'],
     author_email=metadata['email'],
