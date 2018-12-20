@@ -285,8 +285,13 @@ class Schema(object):
         properties = {}
         for prop_name in extra_props:
             prop_value = value[prop_name]
-            properties[prop_name] = self.additional_properties.unmarshal(
-                prop_value, custom_formatters=custom_formatters)
+            if self.additional_properties is True:
+                properties[prop_name] = self._unmarshal_any(prop_value,
+                    custom_formatters=custom_formatters)
+            else:
+                # Schema for extra props
+                properties[prop_name] = self.additional_properties.unmarshal(
+                    prop_value, custom_formatters=custom_formatters)
 
         for prop_name, prop in iteritems(all_props):
             try:
@@ -515,8 +520,12 @@ class Schema(object):
 
         for prop_name in extra_props:
             prop_value = value[prop_name]
-            self.additional_properties.validate(
-                prop_value, custom_formatters=custom_formatters)
+            if self.additional_properties is True:
+                continue
+            else:
+                # Schema for extra props
+                self.additional_properties.validate(
+                    prop_value, custom_formatters=custom_formatters)
 
         for prop_name, prop in iteritems(all_props):
             try:
