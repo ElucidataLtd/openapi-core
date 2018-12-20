@@ -87,7 +87,11 @@ class SchemaFactory(object):
             schema.items = self._create_items(items_spec)
 
         if additional_properties_spec:
-            schema.additional_properties = self.create(additional_properties_spec)
+            if isinstance(additional_properties_spec, bool):
+                # Set to a flag if that's all we're given
+                schema.additional_properties = additional_properties_spec
+            else:
+                schema.additional_properties = self.create(additional_properties_spec)
 
         return schema
 

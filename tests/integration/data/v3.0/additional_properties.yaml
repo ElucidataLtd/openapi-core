@@ -1,0 +1,27 @@
+openapi: "3.0.0"
+info:
+  title: Additional Properties valid OpenAPI specification
+  version: "0.1"
+paths:
+  /anything:
+    get:
+      responses:
+        default:
+          description: Return anything.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /strings-only:
+    get:
+      responses:
+        default:
+          description: Return string properties
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
