@@ -38,8 +38,7 @@ class PyTest(TestCommand):
         TestCommand.finalize_options(self)
         self.test_args = [
             '-sv',
-            '--pep8',
-            '--flakes',
+            '--flake8',
             '--junitxml', 'reports/junit.xml',
             '--cov', 'openapi_core',
             '--cov-report', 'term-missing',
@@ -75,7 +74,6 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Operating System :: OS Independent",
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

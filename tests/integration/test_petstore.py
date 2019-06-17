@@ -1,6 +1,8 @@
 import json
 import pytest
-from six import iteritems
+from base64 import b64encode
+from uuid import UUID
+from six import iteritems, text_type
 
 from openapi_core.extensions.models.models import BaseModel
 from openapi_core.schema.media_types.exceptions import (
@@ -15,8 +17,9 @@ from openapi_core.schema.parameters.models import Parameter
 from openapi_core.schema.paths.models import Path
 from openapi_core.schema.request_bodies.models import RequestBody
 from openapi_core.schema.responses.models import Response
+from openapi_core.schema.schemas.enums import SchemaType
 from openapi_core.schema.schemas.exceptions import (
-    NoValidSchema,
+    NoValidSchema, InvalidSchemaProperty, InvalidSchemaValue,
 )
 from openapi_core.schema.schemas.models import Schema
 from openapi_core.schema.servers.exceptions import InvalidServer
@@ -28,6 +31,14 @@ from openapi_core.wrappers.mock import MockRequest, MockResponse
 
 
 class TestPetstore(object):
+
+    api_key = '12345'
+
+    @property
+    def api_key_encoded(self):
+        api_key_bytes = self.api_key.encode('utf8')
+        api_key_bytes_enc = b64encode(api_key_bytes)
+        return text_type(api_key_bytes_enc, 'utf8')
 
     @pytest.fixture
     def spec_dict(self, factory):
@@ -226,6 +237,105 @@ class TestPetstore(object):
         assert isinstance(response_result.data, BaseModel)
         assert response_result.data.data == []
 
+    def test_get_pets_response(self, spec, response_validator):
+        host_url = 'http://petstore.swagger.io/v1'
+        path_pattern = '/v1/pets'
+        query_params = {
+            'limit': '20',
+        }
+
+        request = MockRequest(
+            host_url, 'GET', '/pets',
+            path_pattern=path_pattern, args=query_params,
+        )
+
+        parameters = request.get_parameters(spec)
+        body = request.get_body(spec)
+
+        assert parameters == {
+            'query': {
+                'limit': 20,
+                'page': 1,
+                'search': '',
+            }
+        }
+        assert body is None
+
+        data_json = {
+            'data': [
+                {
+                    'id': 1,
+                    'name': 'Cat',
+                }
+            ],
+        }
+        data = json.dumps(data_json)
+        response = MockResponse(data)
+
+        response_result = response_validator.validate(request, response)
+
+        assert response_result.errors == []
+        assert isinstance(response_result.data, BaseModel)
+        assert len(response_result.data.data) == 1
+        assert response_result.data.data[0].id == 1
+        assert response_result.data.data[0].name == 'Cat'
+
+    def test_get_pets_invalid_response(self, spec, response_validator):
+        host_url = 'http://petstore.swagger.io/v1'
+        path_pattern = '/v1/pets'
+        query_params = {
+            'limit': '20',
+        }
+
+        request = MockRequest(
+            host_url, 'GET', '/pets',
+            path_pattern=path_pattern, args=query_params,
+        )
+
+        parameters = request.get_parameters(spec)
+        body = request.get_body(spec)
+
+        assert parameters == {
+            'query': {
+                'limit': 20,
+                'page': 1,
+                'search': '',
+            }
+        }
+        assert body is None
+
+        data_json = {
+            'data': [
+                {
+                    'id': 1,
+                    'name': {
+                        'first_name': 'Cat',
+                    },
+                }
+            ],
+        }
+        data = json.dumps(data_json)
+        response = MockResponse(data)
+
+        response_result = response_validator.validate(request, response)
+
+        assert response_result.errors == [
+            InvalidMediaTypeValue(
+                original_exception=InvalidSchemaProperty(
+                    property_name='data',
+                    original_exception=InvalidSchemaProperty(
+                        property_name='name',
+                        original_exception=InvalidSchemaValue(
+                            msg="Value {value} is not of type {type}",
+                            type=SchemaType.STRING,
+                            value={'first_name': 'Cat'},
+                        ),
+                    ),
+                ),
+            ),
+        ]
+        assert response_result.data is None
+
     def test_get_pets_ids_param(self, spec, response_validator):
         host_url = 'http://petstore.swagger.io/v1'
         path_pattern = '/v1/pets'
@@ -411,7 +521,7 @@ class TestPetstore(object):
         data_json = {
             'name': pet_name,
             'tag': pet_tag,
-            'position': '2',
+            'position': 2,
             'address': {
                 'street': pet_street,
                 'city': pet_city,
@@ -423,7 +533,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -439,7 +549,7 @@ class TestPetstore(object):
 
         assert parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -471,7 +581,7 @@ class TestPetstore(object):
         data_json = {
             'name': pet_name,
             'tag': pet_tag,
-            'position': '2',
+            'position': 2,
             'address': {
                 'street': pet_street,
                 'city': pet_city,
@@ -483,7 +593,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -499,7 +609,7 @@ class TestPetstore(object):
 
         assert parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -527,11 +637,11 @@ class TestPetstore(object):
         pet_tag = 'cats'
         pet_street = 'Piekna'
         pet_city = 'Warsaw'
-        pet_healthy = 'false'
+        pet_healthy = False
         data_json = {
             'name': pet_name,
             'tag': pet_tag,
-            'position': '2',
+            'position': 2,
             'address': {
                 'street': pet_street,
                 'city': pet_city,
@@ -543,7 +653,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -559,7 +669,7 @@ class TestPetstore(object):
 
         assert parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -591,7 +701,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -607,7 +717,7 @@ class TestPetstore(object):
 
         assert parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -630,7 +740,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -646,7 +756,7 @@ class TestPetstore(object):
 
         assert parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -671,7 +781,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -687,7 +797,7 @@ class TestPetstore(object):
 
         assert parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -710,7 +820,7 @@ class TestPetstore(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
 
         request = MockRequest(
@@ -1154,11 +1264,13 @@ class TestPetstore(object):
 
         code = 400
         message = 'Bad request'
+        correlationId = UUID('a8098c1a-f86e-11da-bd1a-00112444be1e')
         rootCause = 'Tag already exist'
         additionalinfo = 'Tag Dog already exist'
         data_json = {
             'code': code,
             'message': message,
+            'correlationId': str(correlationId),
             'rootCause': rootCause,
             'additionalinfo': additionalinfo,
         }
@@ -1171,5 +1283,6 @@ class TestPetstore(object):
         assert isinstance(response_result.data, BaseModel)
         assert response_result.data.code == code
         assert response_result.data.message == message
+        assert response_result.data.correlationId == correlationId
         assert response_result.data.rootCause == rootCause
         assert response_result.data.additionalinfo == additionalinfo

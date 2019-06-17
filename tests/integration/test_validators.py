@@ -1,5 +1,7 @@
+from base64 import b64encode
 import json
 import pytest
+from six import text_type
 
 from openapi_core.schema.media_types.exceptions import (
     InvalidContentType, InvalidMediaTypeValue,
@@ -21,6 +23,14 @@ from openapi_core.wrappers.mock import MockRequest, MockResponse
 class TestRequestValidator(object):
 
     host_url = 'http://petstore.swagger.io'
+
+    api_key = '12345'
+
+    @property
+    def api_key_encoded(self):
+        api_key_bytes = self.api_key.encode('utf8')
+        api_key_bytes_enc = b64encode(api_key_bytes)
+        return text_type(api_key_bytes_enc, 'utf8')
 
     @pytest.fixture
     def spec_dict(self, factory):
@@ -88,7 +98,7 @@ class TestRequestValidator(object):
 
     def test_missing_body(self, validator):
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -106,7 +116,7 @@ class TestRequestValidator(object):
         assert result.body is None
         assert result.parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -115,7 +125,7 @@ class TestRequestValidator(object):
 
     def test_invalid_content_type(self, validator):
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -133,7 +143,7 @@ class TestRequestValidator(object):
         assert result.body is None
         assert result.parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -148,7 +158,7 @@ class TestRequestValidator(object):
         data_json = {
             'name': pet_name,
             'tag': pet_tag,
-            'position': '2',
+            'position': 2,
             'address': {
                 'street': pet_street,
                 'city': pet_city,
@@ -159,7 +169,7 @@ class TestRequestValidator(object):
         }
         data = json.dumps(data_json)
         headers = {
-            'api_key': '12345',
+            'api_key': self.api_key_encoded,
         }
         cookies = {
             'user': '123',
@@ -175,7 +185,7 @@ class TestRequestValidator(object):
         assert result.errors == []
         assert result.parameters == {
             'header': {
-                'api_key': 12345,
+                'api_key': self.api_key,
             },
             'cookie': {
                 'user': 123,
@@ -283,7 +293,7 @@ class TestResponseValidator(object):
 
     def test_invalid_media_type_value(self, validator):
         request = MockRequest(self.host_url, 'get', '/v1/pets')
-        response = MockResponse('\{\}')
+        response = MockResponse("{}")
 
         result = validator.validate(request, response)
 
