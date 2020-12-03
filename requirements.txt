@@ -1,4 +1,4 @@
-openapi-spec-validator
+openapi-spec-validator==0.2.4
 six
 lazy-object-proxy
 strict_rfc3339
